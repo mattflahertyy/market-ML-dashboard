@@ -30,6 +30,8 @@ export default function App() {
       layout: {
         background: { type: ColorType.Solid, color: "#000000ff" },
         textColor: "#ffffffff",
+        fontSize: 11,
+        fontFamily: "Arial",
       },
       grid: {
         vertLines: { visible: false },
@@ -46,14 +48,15 @@ export default function App() {
 
     // Main line series
     const lineSeries = chart.addSeries(LineSeries, {
-      color: "#2d01f2ff",
+      color: "#D60A22",
       lineWidth: 2,
     });
     seriesRef.current = lineSeries;
 
+
     // Marker line series for 9:30 AM
     const markerSeries = chart.addSeries(LineSeries, {
-      color: "#ffffffff",
+      color: "rgba(255, 255, 255, 0.3)",
       lineWidth: 1,
     });
     markerSeriesRef.current = markerSeries;
