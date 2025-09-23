@@ -39,65 +39,80 @@ async def root():
     return {"status": "Backend running"}
 
 # ---------------- Replay Market Ticks ---------------- #
+# ---------------- Replay Market Ticks (last 5 days) ---------------- #
 async def replay_ticks(symbol="NVDA", interval="1m"):
     eastern = pytz.timezone("US/Eastern")
     utc = pytz.UTC
     today = dt.date.today()
 
-    def last_trading_day(d: dt.date):
-        while d.weekday() >= 5:  # Skip Sat/Sun
+    # Helper to find the previous N trading days including today
+    def get_last_n_trading_days(n: int):
+        days = []
+        d = today
+        while len(days) < n:
+            if d.weekday() < 5:  # Mon-Fri
+                days.append(d)
             d -= dt.timedelta(days=1)
-        return d
+        return sorted(days)
 
-    trading_day = last_trading_day(today)
-
-    market_open_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(9, 30)))
-    market_close_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(16, 0)))
-    market_open_utc = market_open_local.astimezone(utc)
-    market_close_utc = market_close_local.astimezone(utc)
-
-    # ---------------- Historical Data ---------------- #
-    try:
-        df = yf.download(
-            tickers=symbol,
-            start=trading_day,
-            end=dt.datetime.now(tz=utc),
-            interval=interval,
-            progress=False,
-            auto_adjust=True
-        )
-    except Exception as e:
-        print(f"⚠ Failed historical download: {e}")
-        df = pd.DataFrame()
-
-    if df.empty:
-        print(f"⚠ No intraday data for {trading_day}.")
-        return
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] for c in df.columns]
+    last_5_days = get_last_n_trading_days(5)
 
     tick_history.clear()
-    for idx, row in df.iterrows():
-        ts = int(pd.to_datetime(idx).timestamp())
-        if ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
-            continue
-        tick = {
-            "symbol": symbol,
-            "time": ts,
-            "close": float(row["Close"]),
-            "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
-        }
-        tick_history.append(tick)
+    for trading_day in last_5_days:
+        market_open_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(9, 30)))
+        market_close_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(16, 0)))
+        market_open_utc = market_open_local.astimezone(utc)
+        market_close_utc = market_close_local.astimezone(utc)
 
-    # Broadcast historical ticks
+        # Fetch intraday data for this day
+        try:
+            df = yf.download(
+                tickers=symbol,
+                start=trading_day,
+                end=trading_day + dt.timedelta(days=1),
+                interval=interval,
+                progress=False,
+                auto_adjust=True
+            )
+        except Exception as e:
+            print(f"⚠ Failed download for {trading_day}: {e}")
+            continue
+
+        if df.empty:
+            print(f"⚠ No intraday data for {trading_day}.")
+            continue
+
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] for c in df.columns]
+
+        for idx, row in df.iterrows():
+            ts = int(pd.to_datetime(idx).timestamp())
+            if ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
+                continue
+            tick = {
+                "symbol": symbol,
+                "time": ts,
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+            }
+            tick_history.append(tick)
+
+    # Broadcast all historical ticks
     for t in tick_history:
         await manager.broadcast(json.dumps(t))
 
-    last_timestamp = tick_history[-1]["time"] if tick_history else 0
-    print(f"▶ Loaded {len(tick_history)} historical ticks; now polling for live updates.")
+    if tick_history:
+        last_timestamp = tick_history[-1]["time"]
+        print(f"▶ Loaded {len(tick_history)} ticks from last 5 trading days.")
+    else:
+        last_timestamp = 0
 
     # ---------------- Poll for Live Ticks ---------------- #
+    market_open_local = eastern.localize(dt.datetime.combine(today, dt.time(9, 30)))
+    market_close_local = eastern.localize(dt.datetime.combine(today, dt.time(16, 0)))
+    market_open_utc = market_open_local.astimezone(utc)
+    market_close_utc = market_close_local.astimezone(utc)
+
     while True:
         now_utc = dt.datetime.now(tz=utc)
         if now_utc > market_close_utc:
