@@ -30,7 +30,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# store current session ticks
+# store ticks for the current session
 tick_history: list[dict] = []
 
 @app.get("/")
@@ -38,73 +38,139 @@ async def root():
     return {"status": "Backend running"}
 
 # ---------------- Replay Market Ticks ---------------- #
-async def replay_ticks(symbol="AAPL", interval="1m", total_duration=200.0):
-    """
-    Streams today's (or last weekday's) trading session.
-    """
+async def replay_ticks(symbol="NVDA", interval="1m", total_duration=200.0):
     today = dt.date.today()
 
-    # Get most recent weekday (Mon–Fri)
     def last_trading_day(d: dt.date):
-        while d.weekday() >= 5:  # 5=Sat, 6=Sun
+        while d.weekday() >= 5:
             d -= dt.timedelta(days=1)
         return d
 
     trading_day = last_trading_day(today)
     start = dt.datetime.combine(trading_day, dt.time(9, 30))
-    end = dt.datetime.combine(trading_day, dt.time(16, 0))
+    end = dt.datetime.combine(trading_day, dt.datetime.now().time())  # current time
 
+    # Pull all data from 9:30 to "now"
     df = yf.download(
         tickers=symbol,
-        start=start - dt.timedelta(days=1),  # buffer
-        end=end,
+        start=start - dt.timedelta(days=1),
+        end=dt.datetime.now(),
         interval=interval,
         progress=False,
+        auto_adjust=True
     )
 
     if df.empty:
         print(f"⚠ No data returned for {trading_day}.")
         return
 
-    # Normalize timezones
     utc = pytz.UTC
     start_utc = utc.localize(start)
-    end_utc = utc.localize(end)
+    now_utc = dt.datetime.now(tz=utc)
 
-    # Filter intraday data
-    df = df.loc[(df.index >= start_utc) & (df.index <= end_utc)]
+    df = df.loc[(df.index >= start_utc) & (df.index <= now_utc)]
     if df.empty:
-        print(f"⚠ No intraday data for {trading_day} between 9:30–16:00.")
+        print(f"⚠ No intraday data between 9:30 and now.")
         return
 
-    # Flatten MultiIndex if needed
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
 
-    num_ticks = len(df)
-    sleep_time = total_duration / num_ticks
-    print(f"▶ Replaying {num_ticks} ticks from {trading_day} (~{sleep_time:.2f}s/tick)")
-
+    # Pre-fill tick_history so late joiners see the full day's chart
+    tick_history.clear()
     for idx, row in df.iterrows():
-        try:
-            timestamp = int(pd.to_datetime(idx).timestamp())
-            close_val = row["Close"].iloc[0] if isinstance(row["Close"], pd.Series) else row["Close"]
-            vol_val = row["Volume"].iloc[0] if isinstance(row["Volume"], pd.Series) else row["Volume"]
+        timestamp = int(pd.to_datetime(idx).timestamp())
+        
+        # Handle potential Series values
+        close_val = row["Close"]
+        if isinstance(close_val, pd.Series):
+            close_val = close_val.iloc[0]
+        
+        vol_val = row["Volume"]
+        if isinstance(vol_val, pd.Series):
+            vol_val = vol_val.iloc[0]
+        
+        # Handle NaNs safely
+        volume_int = int(vol_val) if not pd.isna(vol_val) else 0
+        
+        tick = {
+            "symbol": symbol,
+            "time": timestamp,
+            "close": float(close_val),
+            "volume": volume_int,
+        }
+        tick_history.append(tick)
+
+    # Broadcast the backlog once at startup (optional: wait for first connection)
+    for t in tick_history:
+        await manager.broadcast(json.dumps(t))
+
+    # Sleep rate for remaining ticks (simulate real-time pace)
+    sleep_time = total_duration / len(df)
+    print(f"▶ Replaying {len(df)} ticks from 9:30 to now (~{sleep_time:.2f}s/tick)")
+
+    # Start tailing yfinance every minute for new data
+    last_timestamp = tick_history[-1]["time"] if tick_history else 0
+    while True:
+        new_df = yf.download(
+            tickers=symbol, 
+            start=dt.datetime.now()-dt.timedelta(minutes=5),
+            interval=interval, 
+            progress=False,
+            auto_adjust=True
+        )
+        
+        if new_df.empty:
+            await asyncio.sleep(60)
+            continue
+            
+        # Reset index to get Datetime as a column if it's currently the index
+        if isinstance(new_df.index, pd.DatetimeIndex):
+            new_df = new_df.reset_index()
+            
+        for idx, row in new_df.iterrows():
+            # Get timestamp from Datetime column or use the original index
+            if 'Datetime' in row.index:
+                ts_val = row['Datetime']
+            elif hasattr(new_df, 'index') and isinstance(new_df.index[idx], pd.Timestamp):
+                ts_val = new_df.index[idx]
+            else:
+                # If we reset_index, the original datetime index becomes 'index' column
+                ts_val = row.get('index', row.name)
+            
+            # Ensure ts_val is a scalar, not a Series
+            if isinstance(ts_val, pd.Series):
+                ts_val = ts_val.iloc[0]
+                
+            ts = int(pd.to_datetime(ts_val).timestamp())
+            
+            # Skip if we already have this timestamp
+            if ts <= last_timestamp:
+                continue
+            
+            # Handle potential Series values
+            close_val = row["Close"]
+            if isinstance(close_val, pd.Series):
+                close_val = close_val.iloc[0]
+            
+            vol_val = row["Volume"]
+            if isinstance(vol_val, pd.Series):
+                vol_val = vol_val.iloc[0]
+            
+            # Handle NaNs safely
+            volume_int = int(vol_val) if not pd.isna(vol_val) else 0
 
             tick = {
                 "symbol": symbol,
-                "time": timestamp,
+                "time": ts,
                 "close": float(close_val),
-                "volume": int(vol_val) if not pd.isna(vol_val) else 0,
+                "volume": volume_int,
             }
-
-            tick_history.append(tick)  # store tick for future reconnects
+            tick_history.append(tick)
             await manager.broadcast(json.dumps(tick))
-            await asyncio.sleep(sleep_time)
+            last_timestamp = ts
 
-        except Exception as e:
-            print(f"⚠ Error processing row {idx}: {e}")
-            continue
+        await asyncio.sleep(60)  # check every minute
 
 # ---------------- Startup Event ---------------- #
 @app.on_event("startup")
@@ -115,13 +181,15 @@ async def start_stream():
 @app.websocket("/ws/ticks")
 async def ws_ticks(ws: WebSocket):
     await manager.connect(ws)
-
-    # Send all previous ticks first
+    # Send backlog
     for t in tick_history:
-        await ws.send_text(json.dumps(t))
-
+        try:
+            await ws.send_text(json.dumps(t))
+        except:
+            # Client disconnected mid-backlog, stop sending
+            return
     try:
         while True:
-            await ws.receive_text()  # keep alive
+            await ws.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(ws)
