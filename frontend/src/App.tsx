@@ -29,12 +29,12 @@ export default function App() {
       width: chartContainer.current.clientWidth,
       height: chartContainer.current.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: "#ffffff" },
-        textColor: "#333",
+        background: { type: ColorType.Solid, color: "#000000" },
+        textColor: "#ffffffff",
       },
       grid: {
-        vertLines: { color: "#e0e0e0" },
-        horzLines: { color: "#e0e0e0" },
+        vertLines: { visible: false },
+        horzLines: { visible: false },
       },
       timeScale: {
         timeVisible: true,
@@ -50,14 +50,14 @@ export default function App() {
 
     // Main line series
     const lineSeries = chart.addSeries(LineSeries, {
-      color: "#18017aff",
+      color: "#2d01f2ff",
       lineWidth: 2,
     });
     seriesRef.current = lineSeries;
 
     // Marker line series for 9:30 AM
     const markerSeries = chart.addSeries(LineSeries, {
-      color: "#aaaaaa",
+      color: "#ffffffff",
       lineWidth: 1,
     });
     markerSeriesRef.current = markerSeries;
