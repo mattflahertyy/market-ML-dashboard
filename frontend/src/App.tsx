@@ -8,9 +8,22 @@ export default function App() {
   const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const buffer = useRef<LineData[]>([]);
   const hasSetInitialRange = useRef(false);
+  const markerSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   useEffect(() => {
     if (!chartContainer.current) return;
+
+    // Helper: format Unix timestamp to 12-hour local time
+    const formatTime = (time: number) => {
+      const date = new Date(time * 1000);
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      if (hours === 0) hours = 12;
+      const minStr = minutes < 10 ? `0${minutes}` : minutes;
+      return `${hours}:${minStr} ${ampm}`;
+    };
 
     const chart: IChartApi = createChart(chartContainer.current, {
       width: chartContainer.current.clientWidth,
@@ -26,27 +39,56 @@ export default function App() {
       timeScale: {
         timeVisible: true,
         secondsVisible: true,
+        tickMarkFormatter: formatTime,
       },
     });
 
+    // Apply the same formatter to tooltips
+    chart.applyOptions({
+      localization: { timeFormatter: formatTime },
+    });
+
+    // Main line series
     const lineSeries = chart.addSeries(LineSeries, {
       color: "#18017aff",
       lineWidth: 2,
     });
     seriesRef.current = lineSeries;
 
+    // Marker line series for 9:30 AM
+    const markerSeries = chart.addSeries(LineSeries, {
+      color: "#aaaaaa",
+      lineWidth: 1,
+    });
+    markerSeriesRef.current = markerSeries;
+
+    // Helper: convert local 9:30 AM to Unix timestamp
+    const today = new Date();
+    const toUnix = (h: number, m: number) =>
+      Math.floor(
+        new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m).getTime() / 1000
+      );
+    const openTime = toUnix(9, 30);
+
+    // Draw vertical line using two points (tiny offset to avoid duplicate timestamp)
+    markerSeries.setData([
+      { time: openTime as Time, value: 0 },
+      { time: openTime + 1 as Time, value: 1000 },
+    ]);
+
+    // Handle live ticks
     const ws = new WebSocket("ws://localhost:8000/ws/ticks");
     ws.onopen = () => console.log("✅ WebSocket connected");
 
     ws.onmessage = (event) => {
       const tick = JSON.parse(event.data) as { time: number; close: number };
 
-      const localTime = tick.time - (new Date().getTimezoneOffset() * 60);
-
-      const point: LineData = { time: localTime as Time, value: tick.close };
+      // Use UTC timestamp directly (Lightweight Charts will display local time via formatter)
+      const point: LineData = { time: tick.time as Time, value: tick.close };
       buffer.current.push(point);
       lineSeries.update(point);
 
+      // Auto-scaling price
       if (!hasSetInitialRange.current && buffer.current.length === 1) {
         const firstPrice = point.value;
         const rangePercent = 0.02;
@@ -87,9 +129,7 @@ export default function App() {
   return (
     <div className="app-container">
       <h2 className="app-title">📈 Market ML Dashboard</h2>
-
       <div ref={chartContainer} className="chart-container" />
-
       <div className="future-work">Future work (financial metrics)</div>
     </div>
   );
