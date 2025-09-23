@@ -30,7 +30,7 @@ export default function App() {
     });
 
     const lineSeries = chart.addSeries(LineSeries, {
-      color: "#2196F3",
+      color: "#18017aff",
       lineWidth: 2,
     });
     seriesRef.current = lineSeries;
