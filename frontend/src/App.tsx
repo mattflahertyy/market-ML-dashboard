@@ -13,7 +13,6 @@ export default function App() {
   useEffect(() => {
     if (!chartContainer.current) return;
 
-    // Helper: format Unix timestamp to 12-hour local time
     const formatTime = (time: number) => {
       const date = new Date(time * 1000);
       let hours = date.getHours();
@@ -29,7 +28,7 @@ export default function App() {
       width: chartContainer.current.clientWidth,
       height: chartContainer.current.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: "#000000" },
+        background: { type: ColorType.Solid, color: "#000000ff" },
         textColor: "#ffffffff",
       },
       grid: {
@@ -43,10 +42,7 @@ export default function App() {
       },
     });
 
-    // Apply the same formatter to tooltips
-    chart.applyOptions({
-      localization: { timeFormatter: formatTime },
-    });
+    chart.applyOptions({ localization: { timeFormatter: formatTime } });
 
     // Main line series
     const lineSeries = chart.addSeries(LineSeries, {
@@ -62,33 +58,27 @@ export default function App() {
     });
     markerSeriesRef.current = markerSeries;
 
-    // Helper: convert local 9:30 AM to Unix timestamp
+    // Draw vertical line at 9:30 AM
     const today = new Date();
     const toUnix = (h: number, m: number) =>
       Math.floor(
         new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m).getTime() / 1000
       );
     const openTime = toUnix(9, 30);
-
-    // Draw vertical line using two points (tiny offset to avoid duplicate timestamp)
     markerSeries.setData([
       { time: openTime as Time, value: 0 },
       { time: openTime + 1 as Time, value: 1000 },
     ]);
 
-    // Handle live ticks
     const ws = new WebSocket("ws://localhost:8000/ws/ticks");
     ws.onopen = () => console.log("✅ WebSocket connected");
 
     ws.onmessage = (event) => {
       const tick = JSON.parse(event.data) as { time: number; close: number };
-
-      // Use UTC timestamp directly (Lightweight Charts will display local time via formatter)
       const point: LineData = { time: tick.time as Time, value: tick.close };
       buffer.current.push(point);
       lineSeries.update(point);
 
-      // Auto-scaling price
       if (!hasSetInitialRange.current && buffer.current.length === 1) {
         const firstPrice = point.value;
         const rangePercent = 0.02;
@@ -98,6 +88,9 @@ export default function App() {
           to: firstPrice * (1 + rangePercent),
         });
         hasSetInitialRange.current = true;
+
+        // Initial zoom: full trading day + 1.5× extra zoom out
+        chart.timeScale().setVisibleLogicalRange({ from: -100, to: 490 });
       } else if (hasSetInitialRange.current) {
         const currentRange = chart.priceScale("right").getVisibleRange();
         if (currentRange) {
