@@ -40,7 +40,10 @@ export default function App() {
 
     ws.onmessage = (event) => {
       const tick = JSON.parse(event.data) as { time: number; close: number };
-      const point: LineData = { time: tick.time as Time, value: tick.close };
+
+      const localTime = tick.time - (new Date().getTimezoneOffset() * 60);
+
+      const point: LineData = { time: localTime as Time, value: tick.close };
       buffer.current.push(point);
       lineSeries.update(point);
 
