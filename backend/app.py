@@ -1,5 +1,6 @@
 # backend/app.py
-import asyncio, json
+import asyncio
+import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import yfinance as yf
 import pandas as pd
@@ -39,74 +40,82 @@ async def root():
 
 # ---------------- Replay Market Ticks ---------------- #
 async def replay_ticks(symbol="NVDA", interval="1m"):
+    eastern = pytz.timezone("US/Eastern")
+    utc = pytz.UTC
     today = dt.date.today()
 
     def last_trading_day(d: dt.date):
-        while d.weekday() >= 5:  # 5=Sat, 6=Sun
+        while d.weekday() >= 5:  # Skip Sat/Sun
             d -= dt.timedelta(days=1)
         return d
 
     trading_day = last_trading_day(today)
-    start = dt.datetime.combine(trading_day, dt.time(9, 30))
 
-    # Pull all data from 9:30 to now
-    df = yf.download(
-        tickers=symbol,
-        start=start - dt.timedelta(days=1),
-        end=dt.datetime.now(),
-        interval=interval,
-        progress=False,
-        auto_adjust=True
-    )
+    market_open_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(9, 30)))
+    market_close_local = eastern.localize(dt.datetime.combine(trading_day, dt.time(16, 0)))
+    market_open_utc = market_open_local.astimezone(utc)
+    market_close_utc = market_close_local.astimezone(utc)
+
+    # ---------------- Historical Data ---------------- #
+    try:
+        df = yf.download(
+            tickers=symbol,
+            start=trading_day,
+            end=dt.datetime.now(tz=utc),
+            interval=interval,
+            progress=False,
+            auto_adjust=True
+        )
+    except Exception as e:
+        print(f"⚠ Failed historical download: {e}")
+        df = pd.DataFrame()
 
     if df.empty:
-        print(f"⚠ No data returned for {trading_day}.")
-        return
-
-    utc = pytz.UTC
-    start_utc = utc.localize(start)
-    now_utc = dt.datetime.now(tz=utc)
-
-    df = df.loc[(df.index >= start_utc) & (df.index <= now_utc)]
-    if df.empty:
-        print(f"⚠ No intraday data between 9:30 and now.")
+        print(f"⚠ No intraday data for {trading_day}.")
         return
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
 
-    # Pre-fill tick_history so late joiners see the full day's chart
     tick_history.clear()
     for idx, row in df.iterrows():
-        timestamp = int(pd.to_datetime(idx).timestamp())
-        close_val = row["Close"].iloc[0] if isinstance(row["Close"], pd.Series) else row["Close"]
-        vol_val = row["Volume"].iloc[0] if isinstance(row["Volume"], pd.Series) else row["Volume"]
-        volume_int = int(vol_val) if not pd.isna(vol_val) else 0
-
+        ts = int(pd.to_datetime(idx).timestamp())
+        if ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
+            continue
         tick = {
             "symbol": symbol,
-            "time": timestamp,
-            "close": float(close_val),
-            "volume": volume_int,
+            "time": ts,
+            "close": float(row["Close"]),
+            "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
         }
         tick_history.append(tick)
 
-    # Broadcast all preloaded ticks
+    # Broadcast historical ticks
     for t in tick_history:
         await manager.broadcast(json.dumps(t))
 
     last_timestamp = tick_history[-1]["time"] if tick_history else 0
     print(f"▶ Loaded {len(tick_history)} historical ticks; now polling for live updates.")
 
-    # Poll for new data every 30 seconds
+    # ---------------- Poll for Live Ticks ---------------- #
     while True:
-        new_df = yf.download(
-            tickers=symbol,
-            start=dt.datetime.now() - dt.timedelta(minutes=5),
-            interval=interval,
-            progress=False,
-            auto_adjust=True
-        )
+        now_utc = dt.datetime.now(tz=utc)
+        if now_utc > market_close_utc:
+            print("⏹ Market closed, stopping live polling.")
+            break
+
+        try:
+            new_df = yf.download(
+                tickers=symbol,
+                start=now_utc - dt.timedelta(minutes=5),
+                interval=interval,
+                progress=False,
+                auto_adjust=True
+            )
+        except Exception as e:
+            print(f"⚠ Failed live download: {e}")
+            await asyncio.sleep(30)
+            continue
 
         if new_df.empty:
             await asyncio.sleep(30)
@@ -117,22 +126,15 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
 
         for _, row in new_df.iterrows():
             ts_val = row.get("Datetime", row.get("index", row.name))
-            if isinstance(ts_val, pd.Series):
-                ts_val = ts_val.iloc[0]
             ts = int(pd.to_datetime(ts_val).timestamp())
-
-            if ts <= last_timestamp:
+            if ts <= last_timestamp or ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
                 continue
-
-            close_val = row["Close"].iloc[0] if isinstance(row["Close"], pd.Series) else row["Close"]
-            vol_val = row["Volume"].iloc[0] if isinstance(row["Volume"], pd.Series) else row["Volume"]
-            volume_int = int(vol_val) if not pd.isna(vol_val) else 0
 
             tick = {
                 "symbol": symbol,
                 "time": ts,
-                "close": float(close_val),
-                "volume": volume_int,
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
             }
             tick_history.append(tick)
             await manager.broadcast(json.dumps(tick))
