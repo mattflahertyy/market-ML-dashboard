@@ -155,15 +155,23 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
             if isinstance(ts_val, pd.Series):
                 ts_val = ts_val.iloc[0]
             ts = int(pd.to_datetime(ts_val).timestamp())
+
+            close_val = row["Close"]
+            if isinstance(close_val, pd.Series):
+                close_val = close_val.iloc[0]
+            volume_val = row["Volume"]
+            if isinstance(volume_val, pd.Series):
+                volume_val = volume_val.iloc[0]
+
             if ts <= last_timestamp or ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
-                continue
+                    continue
 
             tick = {
                 "symbol": symbol,
                 "time": ts,
-                "date": pd.to_datetime(idx).strftime("%Y-%m-%d"),
-                "close": float(row["Close"]),
-                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+                "date": pd.to_datetime(ts_val).strftime("%Y-%m-%d"),
+                "close": float(close_val),
+                "volume": int(volume_val) if not pd.isna(volume_val) else 0,
             }
             tick_history.append(tick)
             await manager.broadcast(json.dumps(tick))
