@@ -52,3 +52,31 @@ html, body, #root {
   width: calc(33% - 13.3px);
   margin: 0;
 }
+
+.fundamentals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 30px;
+}
+
+.fund-item {
+  display: flex;
+  justify-content: space-between; 
+  font-variant-numeric: tabular-nums; 
+  border-bottom: 1px solid #555; /* underline each item */
+  font-size: 0.8rem;            /* slightly smaller font */
+}
+
+.fundamental-label {
+  font-weight: 500;
+}
+
+.fundamental-value {
+  text-align: right;
+}
+
+.chart-tooltip {
+  z-index: 10;
+  transition: left 0.05s, top 0.05s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
