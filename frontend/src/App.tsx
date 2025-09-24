@@ -15,13 +15,17 @@ export default function App() {
 
     const formatTime = (time: number) => {
       const date = new Date(time * 1000);
-      let hours = date.getHours();
+      const hours = date.getHours();
       const minutes = date.getMinutes();
+      // Only show date at 9:30 AM
+      if (hours === 9 && minutes === 30) {
+        return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear() % 100}`;
+      }
+      // Otherwise just show time
       const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      if (hours === 0) hours = 12;
+      const displayHours = hours % 12 === 0 ? 12 : hours % 12;
       const minStr = minutes < 10 ? `0${minutes}` : minutes;
-      return `${hours}:${minStr} ${ampm}`;
+      return `${displayHours}:${minStr} ${ampm}`;
     };
 
     const chart: IChartApi = createChart(chartContainer.current, {
@@ -93,7 +97,7 @@ export default function App() {
         hasSetInitialRange.current = true;
 
         // Initial zoom: full trading day + 1.5× extra zoom out
-        chart.timeScale().setVisibleLogicalRange({ from: -100, to: 490 });
+        chart.timeScale().setVisibleLogicalRange({ from: -550, to: 100 });
       } else if (hasSetInitialRange.current) {
         const currentRange = chart.priceScale("right").getVisibleRange();
         if (currentRange) {
