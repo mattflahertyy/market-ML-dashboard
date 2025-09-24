@@ -7,24 +7,26 @@ interface Fundamentals {
   [key: string]: string | number | null;
 }
 
-function FundamentalsPanel({ symbol }: { symbol: string }) {
+function FundamentalsPanel({ symbol, onPrevClose }: { symbol: string; onPrevClose: (val: number) => void }) {
   const [stats, setStats] = useState<Fundamentals | null>(null);
 
   useEffect(() => {
     fetch(`http://localhost:8000/fundamentals/${symbol}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.stats) setStats(data.stats);
-        else console.error("No stats field:", data);
+        if (data.stats) {
+          setStats(data.stats);
+          const prev = Number(data.stats.previousClose ?? 0);
+          onPrevClose(prev);
+        } else console.error("No stats field:", data);
       })
       .catch(console.error);
-  }, [symbol]);
+  }, [symbol, onPrevClose]);
 
   if (!stats) return <div>Loading fundamentals…</div>;
 
   return (
     <div className="fundamentals">
-      <h3>{symbol} Key Stats</h3>
       <ul>
         <li>Previous Close: {stats.previousClose}</li>
         <li>Open: {stats.open}</li>
@@ -32,14 +34,14 @@ function FundamentalsPanel({ symbol }: { symbol: string }) {
         <li>Ask: {stats.ask}</li>
         <li>Day’s Range: {stats.dayLow} – {stats.dayHigh}</li>
         <li>52W Range: {stats.fiftyTwoWeekLow} – {stats.fiftyTwoWeekHigh}</li>
-        <li>Volume: {stats.volume}</li>
-        <li>Avg. Volume: {stats.averageVolume}</li>
-        <li>Market Cap: {stats.marketCap}</li>
-        <li>Beta: {stats.beta}</li>
-        <li>P/E: {stats.trailingPE}</li>
-        <li>EPS: {stats.trailingEps}</li>
-        <li>Div & Yield: {stats.dividendRate} ({Number(stats.dividendYield ?? 0) * 100}%)</li>
-        <li>1y Target Est: {stats.targetMeanPrice}</li>
+        <li>Volume: {(stats.volume ?? 0).toLocaleString()}</li>
+        <li>Avg. Volume: {(stats.averageVolume ?? 0).toLocaleString()}</li>
+        <li>Market Cap: {(stats.marketCap ?? 0).toLocaleString()}</li>
+        <li>Beta: {Number(stats.beta ?? 0).toFixed(2)}</li>
+        <li>P/E: {Number(stats.trailingPE ?? 0).toFixed(2)}</li>
+        <li>EPS: {Number(stats.trailingEps ?? 0).toFixed(2)}</li>
+        <li>Div & Yield: {stats.dividendRate} ({Number(stats.dividendYield ?? 0)}%)</li>
+        <li>1y Target Est: {Number(stats.targetMeanPrice ?? 0).toFixed(2)}</li>
       </ul>
     </div>
   );
@@ -50,6 +52,7 @@ export default function App() {
   const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const buffer = useRef<LineData[]>([]);
   const hasSetInitialRange = useRef(false);
+  const [prevClose, setPrevClose] = useState<number | null>(null);
 
   useEffect(() => {
     if (!chartContainer.current) return;
@@ -58,7 +61,8 @@ export default function App() {
       const date = new Date(time * 1000);
       const h = date.getHours();
       const m = date.getMinutes();
-      if (h === 9 && m === 30) return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear() % 100}`;
+      if (h === 9 && m === 30)
+        return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear() % 100}`;
       const ampm = h >= 12 ? "PM" : "AM";
       const displayH = h % 12 === 0 ? 12 : h % 12;
       const minStr = m < 10 ? `0${m}` : m;
@@ -81,7 +85,13 @@ export default function App() {
       const tick = JSON.parse(e.data) as { time: number; close: number };
       const point: LineData = { time: tick.time as Time, value: tick.close };
       buffer.current.push(point);
-      lineSeries.update(point);
+
+      if (seriesRef.current && prevClose !== null) {
+        const color = tick.close >= prevClose ? "#00AA76" : "#D60A22";
+        seriesRef.current.applyOptions({ color });
+      }
+
+      seriesRef.current?.update(point);
 
       if (!hasSetInitialRange.current) {
         const firstPrice = point.value;
@@ -106,13 +116,13 @@ export default function App() {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, []);
+  }, [prevClose]);
 
   return (
     <div className="app-container">
-      <h2 className="app-title">📉 Market ML Dashboard - Real-Time Sock Prediction 📈</h2>
+      <h2 className="app-title">📉 Market ML Dashboard - Real-Time Stock Prediction 📈</h2>
       <div ref={chartContainer} className="chart-container" />
-      <FundamentalsPanel symbol="NVDA" />
+      <FundamentalsPanel symbol="NVDA" onPrevClose={setPrevClose} />
     </div>
   );
 }
