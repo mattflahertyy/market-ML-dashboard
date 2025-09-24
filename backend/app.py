@@ -7,7 +7,18 @@ import pandas as pd
 import datetime as dt
 import pytz
 
+import requests
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------------- Connection Manager ---------------- #
 class ConnectionManager:
@@ -140,7 +151,9 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
             new_df = new_df.reset_index()
 
         for _, row in new_df.iterrows():
-            ts_val = row.get("Datetime", row.get("index", row.name))
+            ts_val = row.get("Datetime", row.name)
+            if isinstance(ts_val, pd.Series):
+                ts_val = ts_val.iloc[0]
             ts = int(pd.to_datetime(ts_val).timestamp())
             if ts <= last_timestamp or ts < int(market_open_utc.timestamp()) or ts > int(market_close_utc.timestamp()):
                 continue
@@ -178,3 +191,34 @@ async def ws_ticks(ws: WebSocket):
             await ws.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(ws)
+
+# ---------------- Fundamentals Endpoint ---------------- #
+@app.get("/fundamentals/{symbol}")
+async def fundamentals(symbol: str):
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info  # dictionary of stats from Yahoo Finance
+        if not info:  # empty or None
+            return {"stats": {}}
+        stats = {
+            "previousClose": info.get("previousClose"),
+            "open": info.get("open"),
+            "bid": info.get("bid"),
+            "ask": info.get("ask"),
+            "dayLow": info.get("dayLow"),
+            "dayHigh": info.get("dayHigh"),
+            "fiftyTwoWeekLow": info.get("fiftyTwoWeekLow"),
+            "fiftyTwoWeekHigh": info.get("fiftyTwoWeekHigh"),
+            "volume": info.get("volume"),
+            "averageVolume": info.get("averageVolume"),
+            "marketCap": info.get("marketCap"),
+            "beta": info.get("beta"),
+            "trailingPE": info.get("trailingPE"),
+            "trailingEps": info.get("trailingEps"),
+            "dividendRate": info.get("dividendRate"),
+            "dividendYield": info.get("dividendYield"),
+            "targetMeanPrice": info.get("targetMeanPrice"),
+        }
+        return {"stats": stats}
+    except Exception as e:
+        return {"error": str(e)}
