@@ -9,32 +9,47 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
+  width: 100%;
+  background: #111;
+  color: #fff;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
 }
 
 .app-title {
-  text-align: center;
-  margin: 0 0 20px 0;
-  flex-shrink: 0;
+  margin: 10px 0;
+  font-size: 1.5rem;
 }
 
 .chart-container {
-  flex: 1; /* fills remaining space */
-  width: 90%; /* chart width */
-  min-height: 0; /* ensures flex works properly */
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  width: 95%;          /* Almost full width */
+  height: 70vh;        /* 70% of the viewport height */
+  margin: 10px auto;
+  border: 1px solid #333;
+  border-radius: 8px;
 }
 
-.future-work {
-  height: 25%; /* ~1/4 of the viewport */
-  width: 90%;
-  margin-top: 20px;
-  border: 1px dashed #ccc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #aaa;
+.fundamentals {
+  width: 95%;
+  background: #1c1c1c;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 8px;
+}
+
+.fundamentals h3 {
+  margin-top: 0;
+}
+
+.fundamentals ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2; /* Two columns for compact display */
+  column-gap: 20px;
+}
+
+.fundamentals li {
+  margin: 4px 0;
 }
