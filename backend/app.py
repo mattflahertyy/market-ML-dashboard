@@ -148,6 +148,7 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
             tick = {
                 "symbol": symbol,
                 "time": ts,
+                "date": pd.to_datetime(idx).strftime("%Y-%m-%d"),
                 "close": float(row["Close"]),
                 "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
             }

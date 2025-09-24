@@ -77,7 +77,7 @@ export default function App() {
     ws.onopen = () => console.log("✅ WebSocket connected");
 
     ws.onmessage = (event) => {
-      const tick = JSON.parse(event.data) as { time: number; close: number };
+      const tick = JSON.parse(event.data) as { time: number; close: number, date: string };
       const point: LineData = { time: tick.time as Time, value: tick.close };
       buffer.current.push(point);
       lineSeries.update(point);
