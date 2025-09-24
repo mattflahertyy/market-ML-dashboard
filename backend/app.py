@@ -103,6 +103,9 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
             tick = {
                 "symbol": symbol,
                 "time": ts,
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
                 "close": float(row["Close"]),
                 "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
             }
@@ -170,7 +173,10 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
                 "symbol": symbol,
                 "time": ts,
                 "date": pd.to_datetime(ts_val).strftime("%Y-%m-%d"),
-                "close": float(close_val),
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
                 "volume": int(volume_val) if not pd.isna(volume_val) else 0,
             }
             tick_history.append(tick)
@@ -224,8 +230,6 @@ async def fundamentals(symbol: str):
             "trailingPE": info.get("trailingPE"),
             "trailingEps": info.get("trailingEps"),
             "dividendRate": info.get("dividendRate"),
-            "dividendYield": info.get("dividendYield"),
-            "targetMeanPrice": info.get("targetMeanPrice"),
         }
         return {"stats": stats}
     except Exception as e:
