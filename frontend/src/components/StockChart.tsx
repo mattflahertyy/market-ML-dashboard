@@ -1,8 +1,15 @@
 import { useEffect, useRef } from "react";
 import { createChart, LineSeries, ColorType } from "lightweight-charts";
-import type { IChartApi, ISeriesApi, Time, LineData } from "lightweight-charts";
+import type {
+  IChartApi,
+  ISeriesApi,
+  Time,
+  SeriesDataItemTypeMap,
+} from "lightweight-charts";
 
-interface TickData extends LineData {
+interface TickData {
+  time: number;
+  close: number;
   open: number;
   high: number;
   low: number;
@@ -19,12 +26,9 @@ export function StockChart({ prevClose, onRefreshTrigger }: StockChartProps) {
   const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const buffer = useRef<TickData[]>([]);
   const hasSetInitialRange = useRef(false);
-  
-  // Store the latest values in refs so they can be accessed without causing re-renders
   const prevCloseRef = useRef(prevClose);
   const onRefreshTriggerRef = useRef(onRefreshTrigger);
 
-  // Update refs when props change
   useEffect(() => {
     prevCloseRef.current = prevClose;
     onRefreshTriggerRef.current = onRefreshTrigger;
@@ -33,134 +37,136 @@ export function StockChart({ prevClose, onRefreshTrigger }: StockChartProps) {
   useEffect(() => {
     if (!chartContainer.current) return;
 
-    const formatTime = (time: number) => {
-      const date = new Date(time * 1000);
-      const h = date.getHours();
-      const m = date.getMinutes();
-      if (h === 9 && m === 30)
-        return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear() % 100}`;
-      const ampm = h >= 12 ? "PM" : "AM";
-      const displayH = h % 12 === 0 ? 12 : h % 12;
-      const minStr = m < 10 ? `0${m}` : m;
-      return `${displayH}:${minStr} ${ampm}`;
-    };
-
+    // When creating the chart:
     const chart: IChartApi = createChart(chartContainer.current, {
       width: chartContainer.current.clientWidth,
       height: chartContainer.current.clientHeight,
-      layout: { background: { type: ColorType.Solid, color: "#000" }, textColor: "#fff" },
+      layout: {
+        background: { type: ColorType.Solid, color: "#000" },
+        textColor: "#fff",
+      },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-      timeScale: { timeVisible: true, secondsVisible: true, tickMarkFormatter: formatTime },
       crosshair: {
         vertLine: { visible: true, labelVisible: false },
-        horzLine: { visible: true, labelVisible: false }, 
+        horzLine: { visible: true, labelVisible: false },
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: true,
+        tickMarkFormatter: (time: number) => {
+          const date = new Date(time * 1000); // convert UNIX timestamp
+          const h = date.getHours();
+          const m = date.getMinutes();
+
+          // If market open 9:30am, show date
+          if (h === 9 && m === 30) {
+            const month = (date.getMonth() + 1).toString().padStart(2, "0");
+            const day = date.getDate().toString().padStart(2, "0");
+            return `${month}-${day}`;
+          }
+
+          const ampm = h >= 12 ? "PM" : "AM";
+          const displayH = h % 12 === 0 ? 12 : h % 12;
+          const minStr = m < 10 ? `0${m}` : m;
+          return `${displayH}:${minStr} ${ampm}`;
+        },
       },
     });
 
-    const lineSeries = chart.addSeries(LineSeries, { color: "#D60A22", lineWidth: 2 });
+    const lineSeries = chart.addSeries(LineSeries, {
+      color: "#D60A22",
+      lineWidth: 2,
+    });
     seriesRef.current = lineSeries;
 
-    // Tooltip setup
+    // Tooltip
     const tooltip = document.createElement("div");
     tooltip.className = "chart-tooltip";
-    tooltip.style.position = "absolute";
-    tooltip.style.padding = "6px 10px";
-    tooltip.style.background = "#222";
-    tooltip.style.color = "#fff";
-    tooltip.style.border = "1px solid #555";
-    tooltip.style.borderRadius = "4px";
-    tooltip.style.pointerEvents = "none";
-    tooltip.style.display = "none";
-    tooltip.style.fontSize = "12px";
+    Object.assign(tooltip.style, {
+      position: "absolute",
+      padding: "6px 10px",
+      background: "#222",
+      color: "#fff",
+      border: "1px solid #555",
+      borderRadius: "4px",
+      pointerEvents: "none",
+      display: "none",
+      fontSize: "12px",
+    });
     chartContainer.current.appendChild(tooltip);
 
+    // WebSocket
     const ws = new WebSocket("ws://localhost:8000/ws/ticks");
-    
-    ws.onopen = () => console.log("WebSocket connected");
-    ws.onclose = () => console.log("WebSocket disconnected");
-    ws.onerror = (error) => console.error("WebSocket error:", error);
-    
+
     ws.onmessage = (e) => {
-      const tick = JSON.parse(e.data) as {
-        time: number;
-        close: number;
-        open: number;
-        high: number;
-        low: number;
-        volume: number;
-      };
+      const tick = JSON.parse(e.data) as TickData;
+      buffer.current.push(tick);
 
-      const point: TickData = {
-        time: tick.time as Time,
-        value: tick.close,
-        open: tick.open ?? tick.close,
-        high: tick.high ?? tick.close,
-        low: tick.low ?? tick.close,
-        volume: tick.volume ?? 0,
-      };
+      // Update line series
+      seriesRef.current?.update({ time: tick.time as Time, value: tick.close });
 
-      buffer.current.push(point);
-      seriesRef.current?.update(point);
-
-      // Use the ref to get the current prevClose value
+      // Color based on prevClose
       if (prevCloseRef.current !== null) {
-        const color = tick.close >= prevCloseRef.current ? "#00AA76" : "#D60A22";
-        seriesRef.current?.applyOptions({ color });
+        seriesRef.current?.applyOptions({
+          color: tick.close >= prevCloseRef.current ? "#00AA76" : "#D60A22",
+        });
       }
 
+      // Initial price range
       if (!hasSetInitialRange.current) {
-        const firstPrice = point.value;
         chart.priceScale("right").applyOptions({ autoScale: false });
-        chart.priceScale("right").setVisibleRange({ from: firstPrice * 0.98, to: firstPrice * 1.02 });
+        chart
+          .priceScale("right")
+          .setVisibleRange({ from: tick.close * 0.98, to: tick.close * 1.02 });
         hasSetInitialRange.current = true;
       }
 
-      // Use the ref to call the refresh trigger
       onRefreshTriggerRef.current();
     };
 
-    // Tooltip hover logic
+    // Tooltip hover
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.seriesData.size) {
         tooltip.style.display = "none";
         return;
       }
 
-      const seriesData = param.seriesData.get(lineSeries) as TickData | undefined;
-      if (!seriesData) return;
+      const lineData = param.seriesData.get(
+        lineSeries
+      ) as SeriesDataItemTypeMap["Line"];
+      if (!lineData) return;
 
-      const { value, open, high, low, volume, time } = seriesData;
+      const hoveredTick = buffer.current.find(
+        (t) => t.time === (lineData.time as number)
+      );
+      if (!hoveredTick) return;
 
-      const date = new Date((time as number) * 1000);
+      const date = new Date(hoveredTick.time * 1000);
       const h = date.getHours();
       const m = date.getMinutes();
       const ampm = h >= 12 ? "PM" : "AM";
       const displayH = h % 12 === 0 ? 12 : h % 12;
       const minStr = m < 10 ? `0${m}` : m;
-      const dateStr = `${(date.getMonth() + 1).toString().padStart(2, "0")}-${date
+      const dateStr = `${(date.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}-${date
         .getDate()
         .toString()
         .padStart(2, "0")} ${displayH}:${minStr}${ampm}`;
 
-      const openValue = open ?? 0;
-      const highValue = high ?? 0;
-      const lowValue = low ?? 0;
-      const closeValue = value ?? 0;
-
       tooltip.innerHTML = `
         <div><strong>Date:</strong> ${dateStr}</div>
-        <div><strong>Close:</strong> ${closeValue.toFixed(2)}</div>
-        <div><strong>Open:</strong> ${openValue.toFixed(2)}</div>
-        <div><strong>High:</strong> ${highValue.toFixed(2)}</div>
-        <div><strong>Low:</strong> ${lowValue.toFixed(2)}</div>
-        <div><strong>Volume:</strong> ${volume ?? 0}</div>
+        <div><strong>Close:</strong> ${hoveredTick.close.toFixed(2)}</div>
+        <div><strong>Open:</strong> ${hoveredTick.open.toFixed(2)}</div>
+        <div><strong>High:</strong> ${hoveredTick.high.toFixed(2)}</div>
+        <div><strong>Low:</strong> ${hoveredTick.low.toFixed(2)}</div>
+        <div><strong>Volume:</strong> ${hoveredTick.volume}</div>
       `;
 
-      const point = param.point;
-      if (point) {
+      if (param.point) {
         tooltip.style.display = "block";
-        tooltip.style.left = `${point.x + 15}px`;
-        tooltip.style.top = `${point.y + 15}px`;
+        tooltip.style.left = `${param.point.x + 15}px`;
+        tooltip.style.top = `${param.point.y + 15}px`;
       }
     });
 
@@ -179,7 +185,7 @@ export function StockChart({ prevClose, onRefreshTrigger }: StockChartProps) {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, []); // Empty dependency array - no ESLint warnings!
+  }, []);
 
   return <div ref={chartContainer} className="chart-container" />;
 }

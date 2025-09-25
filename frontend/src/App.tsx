@@ -14,14 +14,14 @@ export default function App() {
   return (
     <div className="app-container">
       <h2 className="app-title">📉 Real-Time Stock Prediction 📈</h2>
-      <StockChart 
-        prevClose={prevClose} 
-        onRefreshTrigger={handleRefreshTrigger} 
+      <StockChart
+        prevClose={prevClose}
+        onRefreshTrigger={handleRefreshTrigger}
       />
-      <AdvancedStatsPanel 
-        symbol="NVDA" 
-        onPrevClose={setPrevClose} 
-        refreshTrigger={refreshCounter} 
+      <AdvancedStatsPanel
+        symbol="NVDA"
+        onPrevClose={setPrevClose}
+        refreshTrigger={refreshCounter}
       />
     </div>
   );

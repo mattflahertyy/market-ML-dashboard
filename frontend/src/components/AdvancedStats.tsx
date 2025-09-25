@@ -51,35 +51,51 @@ export function AdvancedStatsPanel({
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">Day’s Range</span>
-          <span className="advanced-stats-value">{stats.dayLow} – {stats.dayHigh}</span>
+          <span className="advanced-stats-value">
+            {stats.dayLow} – {stats.dayHigh}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">52W Range</span>
-          <span className="advanced-stats-value">{stats.fiftyTwoWeekLow} – {stats.fiftyTwoWeekHigh}</span>
+          <span className="advanced-stats-value">
+            {stats.fiftyTwoWeekLow} – {stats.fiftyTwoWeekHigh}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">Volume</span>
-          <span className="advanced-stats-value">{(stats.volume ?? 0).toLocaleString()}</span>
+          <span className="advanced-stats-value">
+            {(stats.volume ?? 0).toLocaleString()}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">Avg. Volume</span>
-          <span className="advanced-stats-value">{(stats.averageVolume ?? 0).toLocaleString()}</span>
+          <span className="advanced-stats-value">
+            {(stats.averageVolume ?? 0).toLocaleString()}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">Market Cap</span>
-          <span className="advanced-stats-value">{(stats.marketCap ?? 0).toLocaleString()}</span>
+          <span className="advanced-stats-value">
+            {(stats.marketCap ?? 0).toLocaleString()}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">Beta</span>
-          <span className="advanced-stats-value">{Number(stats.beta ?? 0).toFixed(2)}</span>
+          <span className="advanced-stats-value">
+            {Number(stats.beta ?? 0).toFixed(2)}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">P/E</span>
-          <span className="advanced-stats-value">{Number(stats.trailingPE ?? 0).toFixed(2)}</span>
+          <span className="advanced-stats-value">
+            {Number(stats.trailingPE ?? 0).toFixed(2)}
+          </span>
         </div>
         <div className="advanced-stats-item">
           <span className="advanced-stats-label">EPS</span>
-          <span className="advanced-stats-value">{Number(stats.trailingEps ?? 0).toFixed(2)}</span>
+          <span className="advanced-stats-value">
+            {Number(stats.trailingEps ?? 0).toFixed(2)}
+          </span>
         </div>
       </div>
     </div>
