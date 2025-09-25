@@ -10,9 +10,11 @@ interface Fundamentals {
 function FundamentalsPanel({
   symbol,
   onPrevClose,
+  refreshTrigger,
 }: {
   symbol: string;
   onPrevClose: (val: number) => void;
+  refreshTrigger: number;
 }) {
   const [stats, setStats] = useState<Fundamentals | null>(null);
 
@@ -27,7 +29,7 @@ function FundamentalsPanel({
         } else console.error("No stats field:", data);
       })
       .catch(console.error);
-  }, [symbol, onPrevClose]);
+  }, [symbol, onPrevClose, refreshTrigger]);
 
   if (!stats) return <div>Loading fundamentals…</div>;
 
@@ -99,6 +101,7 @@ export default function App() {
   const buffer = useRef<TickData[]>([]);
   const hasSetInitialRange = useRef(false);
   const [prevClose, setPrevClose] = useState<number | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   useEffect(() => {
     if (!chartContainer.current) return;
@@ -122,8 +125,8 @@ export default function App() {
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       timeScale: { timeVisible: true, secondsVisible: true, tickMarkFormatter: formatTime },
         crosshair: {
-          vertLine: { visible: true, labelVisible: false }, // remove vertical label
-          horzLine: { visible: true, labelVisible: false }, // remove horizontal label
+          vertLine: { visible: true, labelVisible: false },
+          horzLine: { visible: true, labelVisible: false }, 
         },
     });
 
@@ -178,6 +181,8 @@ export default function App() {
         chart.priceScale("right").setVisibleRange({ from: firstPrice * 0.98, to: firstPrice * 1.02 });
         hasSetInitialRange.current = true;
       }
+
+      setRefreshCounter((c) => c + 1);
     };
 
     // Hover tooltip
@@ -246,7 +251,7 @@ export default function App() {
     <div className="app-container">
       <h2 className="app-title">📉 Real-Time Stock Prediction 📈</h2>
       <div ref={chartContainer} className="chart-container" />
-      <FundamentalsPanel symbol="NVDA" onPrevClose={setPrevClose} />
+      <FundamentalsPanel symbol="NVDA" onPrevClose={setPrevClose} refreshTrigger={refreshCounter} />
     </div>
   );
 }
