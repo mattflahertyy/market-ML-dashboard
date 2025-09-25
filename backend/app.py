@@ -173,10 +173,10 @@ async def replay_ticks(symbol="NVDA", interval="1m"):
                 "symbol": symbol,
                 "time": ts,
                 "date": pd.to_datetime(ts_val).strftime("%Y-%m-%d"),
-                "open": float(row["Open"]),
-                "high": float(row["High"]),
-                "low": float(row["Low"]),
-                "close": float(row["Close"]),
+                "open": float(row["Open"].iloc[0]),
+                "high": float(row["High"].iloc[0]),
+                "low": float(row["Low"].iloc[0]),
+                "close": float(row["Close"].iloc[0]),
                 "volume": int(volume_val) if not pd.isna(volume_val) else 0,
             }
             tick_history.append(tick)
