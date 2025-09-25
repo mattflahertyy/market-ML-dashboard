@@ -206,9 +206,9 @@ async def ws_ticks(ws: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(ws)
 
-# ---------------- Fundamentals Endpoint ---------------- #
-@app.get("/fundamentals/{symbol}")
-async def fundamentals(symbol: str):
+# ---------------- Advanced Stats Endpoint ---------------- #
+@app.get("/advanced-stats/{symbol}")
+async def advancedStats(symbol: str):
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info  # dictionary of stats from Yahoo Finance

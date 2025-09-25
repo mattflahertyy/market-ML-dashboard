@@ -30,6 +30,46 @@ html, body, #root {
   border-radius: 8px;
 }
 
+/* Advanced Stats Panel */
+.advanced-stats {
+  width: 95%;
+  background: #1c1c1c;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 8px;
+}
+
+.advanced-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 30px;
+}
+
+.advanced-stats-item {
+  display: flex;
+  justify-content: space-between; 
+  font-variant-numeric: tabular-nums; 
+  border-bottom: 1px solid #555;
+  font-size: 0.8rem;
+  padding-bottom: 5px;
+}
+
+.advanced-stats-label {
+  font-weight: 500;
+}
+
+.advanced-stats-value {
+  text-align: right;
+}
+
+/* Chart Tooltip */
+.chart-tooltip {
+  z-index: 10;
+  transition: left 0.05s, top 0.05s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+/* Legacy styles (can be removed if not used) */
 .fundamentals {
   width: 95%;
   background: #1c1c1c;
@@ -63,8 +103,8 @@ html, body, #root {
   display: flex;
   justify-content: space-between; 
   font-variant-numeric: tabular-nums; 
-  border-bottom: 1px solid #555; /* underline each item */
-  font-size: 0.8rem;            /* slightly smaller font */
+  border-bottom: 1px solid #555;
+  font-size: 0.8rem;
 }
 
 .fundamental-label {
@@ -73,10 +113,4 @@ html, body, #root {
 
 .fundamental-value {
   text-align: right;
-}
-
-.chart-tooltip {
-  z-index: 10;
-  transition: left 0.05s, top 0.05s;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
