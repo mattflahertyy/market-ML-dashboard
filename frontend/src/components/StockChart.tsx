@@ -19,20 +19,24 @@ interface TickData {
 interface StockChartProps {
   prevClose: number | null;
   onRefreshTrigger: () => void;
+  onNewTick?: (tick: TickData) => void;
 }
 
-export function StockChart({ prevClose, onRefreshTrigger }: StockChartProps) {
+export function StockChart({ prevClose, onRefreshTrigger, onNewTick }: StockChartProps) {
   const chartContainer = useRef<HTMLDivElement | null>(null);
   const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const buffer = useRef<TickData[]>([]);
   const hasSetInitialRange = useRef(false);
   const prevCloseRef = useRef(prevClose);
   const onRefreshTriggerRef = useRef(onRefreshTrigger);
+  const onNewTickRef = useRef(onNewTick);
+
 
   useEffect(() => {
     prevCloseRef.current = prevClose;
     onRefreshTriggerRef.current = onRefreshTrigger;
-  }, [prevClose, onRefreshTrigger]);
+    onNewTickRef.current = onNewTick;
+  }, [prevClose, onRefreshTrigger, onNewTick]);
 
   useEffect(() => {
     if (!chartContainer.current) return;
@@ -104,6 +108,10 @@ export function StockChart({ prevClose, onRefreshTrigger }: StockChartProps) {
 
       // Update line series
       seriesRef.current?.update({ time: tick.time as Time, value: tick.close });
+
+      if (onNewTickRef.current) {
+        onNewTickRef.current(tick);
+      }
 
       // Color based on prevClose
       if (prevCloseRef.current !== null) {

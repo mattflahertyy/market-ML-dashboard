@@ -8,37 +8,59 @@ html, body, #root {
 .app-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
   width: 100%;
   background: #111;
   color: #fff;
   min-height: 100vh;
   padding: 0;
   margin: 0;
+  box-sizing: border-box;
 }
 
 .app-title {
   margin: 5px 0;
   font-size: 1.6rem;
+  text-align: center;
 }
 
+/* Chart container on top */
 .chart-container {
-  width: 95%;       
-  height: 70vh;   
+  width: 95%;
+  height: 70vh;
   margin: 10px auto;
   border: 1px solid #333;
   border-radius: 8px;
 }
 
-/* Advanced Stats Panel */
-.advanced-stats {
+/* Bottom stats container */
+.stats-container {
+  display: flex;
+  gap: 16px;
   width: 95%;
-  background: #1c1c1c;
-  padding: 10px;
-  margin-top: 5px;
-  border-radius: 8px;
+  margin:  0 auto;
+  height: 20vh; 
 }
 
+/* Realtime stats panel on left */
+.realtime-stats {
+  flex: 1 1 20%; /* 1/5 width */
+  min-width: 200px;
+  background: #1c1c1c;
+  padding: 10px;
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+/* Advanced stats panel on right */
+.advanced-stats {
+  flex: 1 1 80%; /* 4/5 width */
+  background: #1c1c1c;
+  padding: 5px;
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+/* Advanced stats grid */
 .advanced-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -62,14 +84,14 @@ html, body, #root {
   text-align: right;
 }
 
-/* Chart Tooltip */
+/* Chart tooltip */
 .chart-tooltip {
   z-index: 10;
   transition: left 0.05s, top 0.05s;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
 
-/* Legacy styles (can be removed if not used) */
+/* Legacy styles (optional, keep if needed) */
 .fundamentals {
   width: 95%;
   background: #1c1c1c;
