@@ -23,7 +23,6 @@ html, body, #root {
   text-align: center;
 }
 
-/* Chart container on top */
 .chart-container {
   width: 95%;
   height: 70vh;
@@ -32,7 +31,6 @@ html, body, #root {
   border-radius: 8px;
 }
 
-/* Bottom stats container */
 .stats-container {
   display: flex;
   gap: 16px;
@@ -41,9 +39,8 @@ html, body, #root {
   height: 20vh; 
 }
 
-/* Realtime stats panel on left */
 .realtime-stats {
-  flex: 1 1 20%; /* 1/5 width */
+  flex: 1 1 20%; 
   min-width: 200px;
   background: #1c1c1c;
   padding: 10px;
@@ -51,16 +48,14 @@ html, body, #root {
   overflow-y: auto;
 }
 
-/* Advanced stats panel on right */
 .advanced-stats {
-  flex: 1 1 80%; /* 4/5 width */
+  flex: 1 1 80%;
   background: #1c1c1c;
   padding: 5px;
   border-radius: 8px;
   overflow-y: auto;
 }
 
-/* Advanced stats grid */
 .advanced-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -74,6 +69,41 @@ html, body, #root {
   border-bottom: 1px solid #555;
   font-size: 0.8rem;
   padding-bottom: 5px;
+}
+
+.stats-panel {
+  background: #1c1c1c;
+  border-radius: 8px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.stats-panel h3 {
+  text-align: center;
+  width: 100%;
+  margin: 0 0 5% 0;
+  font-size: 1.4rem;
+  border-bottom: 1px solid #444;
+  padding-bottom: 6px;
+}
+
+.stats-item {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #444;
+}
+
+.stats-label {
+  font-weight: 500;
+}
+
+.stats-value {
+  text-align: right;
 }
 
 .advanced-stats-label {
