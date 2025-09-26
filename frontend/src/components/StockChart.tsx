@@ -168,7 +168,7 @@ export function StockChart({ prevClose, onRefreshTrigger, onNewTick }: StockChar
         <div><strong>Open:</strong> ${hoveredTick.open.toFixed(2)}</div>
         <div><strong>High:</strong> ${hoveredTick.high.toFixed(2)}</div>
         <div><strong>Low:</strong> ${hoveredTick.low.toFixed(2)}</div>
-        <div><strong>Volume:</strong> ${hoveredTick.volume}</div>
+        <div><strong>Volume:</strong> ${hoveredTick.volume.toLocaleString()}</div>
       `;
 
       if (param.point) {
