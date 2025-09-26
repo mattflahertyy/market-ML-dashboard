@@ -2,11 +2,16 @@ import { useState } from "react";
 import { StockChart } from "./components/StockChart";
 import { AdvancedStatsPanel } from "./components/AdvancedStats";
 import { RealtimeStatsPanel } from "./components/RealTimeStats";
+import { PredictionBadge } from "./components/PredictionBadge";
 import "./App.css";
 
 interface TickData {
   time: number;
   close: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
 }
 
 export default function App() {
@@ -16,22 +21,26 @@ export default function App() {
 
   // Called whenever StockChart triggers a refresh
   const handleRefreshTrigger = () => {
-    setRefreshCounter(c => c + 1);
+    setRefreshCounter((c) => c + 1);
   };
 
   // Add a new tick to the ticks state
   const handleNewTick = (tick: TickData) => {
-    setTicks(prev => [...prev, tick]);
+    setTicks((prev) => [...prev, tick]);
   };
 
   return (
     <div className="app-container">
       <h2 className="app-title">📉 Real-Time Stock Prediction 📈</h2>
 
+      {/* Prediction badge */}
+      <PredictionBadge symbol="NVDA" />
+
+      {/* Stock chart */}
       <StockChart
         prevClose={prevClose}
         onRefreshTrigger={handleRefreshTrigger}
-        onNewTick={handleNewTick} // <-- Pass it to StockChart
+        onNewTick={handleNewTick}
       />
 
       <div className="stats-container">
